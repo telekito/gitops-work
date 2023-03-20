@@ -1,0 +1,46 @@
+prometheus:
+  prometheusSpec:
+    cluster: <CLUSTER-NAME>   
+    externalLabels: {
+      cluster: "<CLUSTER-NAME>"
+    }   
+    remoteWrite:
+      - url: http://localhost:8081/api/v1/write           
+    volumes:
+      - name: secrets-store-inline
+        secret:
+          secretName: secret-monitoring    
+    containers:
+      - name: prom-remotewrite
+        image: mcr.microsoft.com/azuremonitor/prometheus/promdev/prom-remotewrite:prom-remotewrite-20221103.1
+        imagePullPolicy: Always        
+        volumeMounts:
+          - name: secrets-store-inline
+            mountPath: /mnt/secrets-store
+            readOnly: true        
+        ports:
+          - name: rw-port
+            containerPort: 8081
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: rw-port            
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: rw-port            
+        env:
+          - name: INGESTION_URL
+            value: '<INGESTION_URL>'
+          - name: LISTENING_PORT
+            value: '8081'
+          - name: IDENTITY_TYPE
+            value: aadApplication
+          - name: AZURE_CLIENT_ID
+            value: '<APP-REGISTRATION-CLIENT-ID>'
+          - name: AZURE_TENANT_ID
+            value: '<TENANT-ID>'
+          - name: AZURE_CLIENT_CERTIFICATE_PATH
+            value: /mnt/secrets-store/monitoring.pfx
+          - name: CLUSTER
+            value: '<CLUSTER-NAME>'
